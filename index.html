@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+	<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
@@ -109,6 +109,41 @@
                 color: black;
             }
         }
+/* --- INÍCIO DA ÁREA SEGURA PARA MOBILE --- */
+@media (max-width: 768px) {
+    /* 1. Organiza os blocos principais para empilharem em vez de espremer */
+    #screen-pdv, .container-principal { 
+        display: flex !important;
+        flex-direction: column !important;
+        padding: 5px !important;
+    }
+
+    /* 2. Ajusta as colunas de Vendedora, Loja, Cliente e CPF */
+    /* Aqui usamos 'flex: 1 1 100%' para que cada campo ocupe sua própria linha no celular */
+    .vendedora-loja, .dados-cliente {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+    }
+
+    .vendedora-loja > div, .dados-cliente > div {
+        flex: 1 1 100% !important; /* Força 100% de largura no celular */
+    }
+
+    /* 3. Melhora o tamanho dos inputs para o toque do dedo, sem mudar a função */
+    input, select, button {
+        height: 48px !important; /* Tamanho padrão de acessibilidade mobile */
+        font-size: 16px !important; /* Impede o zoom involuntário do navegador */
+    }
+
+    /* 4. Garante que o Cupom fique visível abaixo dos campos de inserção */
+    #cupom-fiscal {
+        width: 100% !important;
+        margin: 20px 0 !important;
+        order: 2; /* Garante que ele apareça depois dos produtos */
+    }
+}
+/* --- FIM DA ÁREA SEGURA --- */
     </style>
 </head>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
