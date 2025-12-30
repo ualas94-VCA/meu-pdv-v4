@@ -1,45 +1,308 @@
-@media (max-width: 768px) {
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sys-Ualas PDV v4.2 (Conectado)</title>
     
-    /* 1. Resolve o cabeçalho: Força todos os botões (Vendas, Gestão, Config) a empilhar */
-    /* Substitua '.top-buttons' pelo nome da classe real do seu container de botões se necessário */
-    header, .top-buttons, .menu-superior, .header-venda { 
-        display: flex !important;
-        flex-direction: column !important;
-        width: 100% !important;
-        gap: 8px !important;
-    }
+    <meta name="theme-color" content="#007bff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* ============================================================
+           1. ESTILOS VISUAIS (INTERFACE)
+           ============================================================ */
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', 'Roboto', sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; min-height: 100vh; overflow-x: hidden; }
+        .hidden { display: none !important; }
+        
+        /* LOGIN */
+        #screen-login { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #3b82f6 100%); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        .login-box { position: relative; z-index: 10; background: rgba(255, 255, 255, 0.95); padding: 50px 40px; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); width: 100%; max-width: 420px; text-align: center; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(10px); }
+        .brand-title { font-size: 2rem; font-weight: 800; color: #1e3a8a; margin: 0; letter-spacing: -1px; text-transform: uppercase; }
+        .brand-subtitle { font-size: 0.9rem; color: #64748b; margin-bottom: 30px; letter-spacing: 2px; text-transform: uppercase; font-weight: 600; }
+        
+        .login-input { width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 1rem; color: #334155; background-color: #f8fafc; text-transform: uppercase; margin-bottom: 15px; }
+        .login-btn { width: 100%; padding: 15px; background: linear-gradient(to right, #1e3a8a, #2563eb); color: white; border: none; border-radius: 10px; font-size: 1.1em; font-weight: 700; cursor: pointer; transition: 0.2s; box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3); }
+        .login-error { background: #fef2f2; color: #dc2626; padding: 10px; border-radius: 8px; margin-top: 15px; font-size: 0.9em; display: none; }
 
-    /* Força qualquer botão dentro do topo a ocupar a linha toda */
-    header button, .top-buttons button, .menu-superior button {
-        width: 100% !important;
-        display: block !important;
-        margin: 0 !important;
-    }
+        /* NAVBAR */
+        .navbar { background-color: #ffffff; height: 65px; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); z-index: 100; }
+        .brand { font-size: 1.3rem; font-weight: 800; color: #1e3a8a; display: flex; align-items: center; gap: 10px; }
+        .user-info { font-size: 0.9em; color: #64748b; margin-right: 15px; font-weight: 600; }
+        .nav-btn { background: #f1f5f9; color: #475569; border: none; padding: 9px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; display: flex; align-items: center; gap: 8px; font-size: 0.9em; margin-left: 8px; }
+        .nav-btn:hover { background: #e2e8f0; color: #1e293b; }
+        .nav-btn.active { background: #1e3a8a; color: white; box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.3); }
+        .btn-logout { background: #fef2f2; color: #ef4444; }
 
-    /* 2. Empilhamento total dos campos de dados */
-    .vendedora-loja, .dados-cliente, .input-group {
-        display: flex !important;
-        flex-direction: column !important;
-    }
+        /* LAYOUT */
+        .screen { display: none; height: calc(100vh - 65px); padding: 20px; overflow-y: auto; }
+        .screen.active { display: flex; } 
+        #screen-pdv { gap: 20px; }
+        .left-panel { flex: 1.8; display: flex; flex-direction: column; gap: 20px; }
+        .right-panel { flex: 1; width: 380px; min-width: 350px; background: white; border-radius: 16px; padding: 25px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); display: flex; flex-direction: column; height: 100%; border: 1px solid #f1f5f9; }
+        .card-pdv { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #f1f5f9; }
+        
+        .input-group { margin-bottom: 15px; }
+        .input-control { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; outline: none; transition: 0.2s; color: #334155; }
+        #inputVendedora { background-color: #eff6ff; border-color: #bfdbfe; font-weight: bold; color: #1d4ed8; }
 
-    .vendedora-loja > div, .dados-cliente > div, input, select {
-        width: 100% !important;
-        margin-bottom: 10px !important;
-    }
+        .price-toggle { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 2px solid #cbd5e1; font-weight: 700; cursor: pointer; background: #f8fafc; color: #64748b; transition: 0.2s; }
+        .price-toggle.active-p2 { background: #0ea5e9; color: white; border-color: #0284c7; }
 
-    /* 3. Ajuste do Botão Finalizar e Margem de Segurança */
-    /* Localize o ID ou classe do seu botão finalizar. Vou usar #btn-finalizar como exemplo */
-    #btn-finalizar, .btn-finalizar, button[onclick*="finalizar"] {
-        width: 100% !important;
-        height: 60px !important; /* Um pouco maior para destaque */
-        margin-top: 20px !important;
-        margin-bottom: 80px !important; /* MARGEM DE SEGURANÇA EXTRA EMBAIXO */
-        font-weight: bold !important;
-        background-color: #28a745 !important; /* Exemplo de cor verde */
-    }
+        #searchResult { max-height: 300px; overflow-y: auto; background: white; border: 1px solid #e2e8f0; margin-top: 5px; display: none; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); position: relative; z-index: 50; }
+        .search-item { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.1s; }
+        .search-item:hover, .search-item.selected { background: #eff6ff; }
 
-    /* 4. Garante que o corpo da página tenha espaço para rolar até o fim */
-    body {
-        padding-bottom: 100px !important; 
-    }
-}
+        #cartList { flex: 1; overflow-y: auto; border-top: 2px dashed #e2e8f0; padding-top: 15px; margin-top: 15px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+        .btn-remove { color: #ef4444; background: #fef2f2; width: 32px; height: 32px; border-radius: 8px; border: none; cursor: pointer; }
+
+        .financial-area { background: #f8fafc; border-radius: 12px; padding: 15px; border: 1px solid #e2e8f0; margin-top: auto; }
+        .fin-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.9em; color: #64748b; font-weight: 500; }
+        .fin-total { font-size: 2rem; font-weight: 800; color: #166534; text-align: right; border-top: 2px dashed #cbd5e1; padding-top: 10px; margin-top: 10px; letter-spacing: -1px; }
+
+        #divTroco { background: #fff7ed; padding: 12px; border-radius: 8px; border: 1px solid #ffedd5; margin-top: 10px; display: none; }
+        .btn-finalize { width: 100%; padding: 16px; background: linear-gradient(to right, #16a34a, #15803d); color: white; border: none; border-radius: 10px; font-size: 1.1em; font-weight: 700; cursor: pointer; margin-top: 15px; }
+
+        /* ============================================================
+           2. ESTILO DE IMPRESSÃO (TEXTO PURO)
+           ============================================================ */
+        #printArea { display: none; }
+        @media print {
+            @page { margin: 0; size: auto; }
+            html, body { margin: 0 !important; padding: 0 !important; background-color: #fff !important; width: 100% !important; }
+            body > *:not(#printArea) { display: none !important; }
+            #printArea, #printArea * { visibility: visible; display: block; }
+            #printArea { position: absolute; top: 0; left: 0; width: 100%; padding: 0; margin: 0; }
+            #cupom-content { font-family: 'Courier New', monospace; font-size: 16px; font-weight: 800; white-space: pre; width: 100%; margin: 0; line-height: 1.0; color: black; }
+        }
+
+        /* --- ÁREA SEGURA PARA MOBILE TOTALMENTE VERTICAL --- */
+        @media (max-width: 768px) {
+            header, .navbar, .menu-superior { 
+                display: flex !important;
+                flex-direction: column !important;
+                height: auto !important;
+                padding: 10px !important;
+                gap: 10px !important;
+            }
+
+            .menu-superior { width: 100% !important; }
+
+            .nav-btn {
+                width: 100% !important;
+                margin: 0 !important;
+                justify-content: center !important;
+                height: 45px !important;
+            }
+
+            #screen-pdv { flex-direction: column !important; height: auto !important; }
+            .left-panel, .right-panel { width: 100% !important; min-width: 100% !important; flex: none !important; }
+
+            .vendedora-loja, .dados-cliente, .input-group-row {
+                display: flex !important;
+                flex-direction: column !important;
+            }
+
+            input, select, .price-toggle {
+                height: 50px !important;
+                font-size: 16px !important;
+            }
+
+            .btn-finalize {
+                height: 65px !important;
+                margin-bottom: 80px !important; /* Espaço para não ficar colado no fim */
+            }
+
+            body { padding-bottom: 100px !important; height: auto !important; overflow-y: auto !important; }
+            .screen { height: auto !important; overflow: visible !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="screen-login">
+        <div class="login-box">
+            <h1 class="brand-title">SYS-UALAS</h1>
+            <p class="brand-subtitle">PDV v4.2 Conectado</p>
+            <div class="login-input-group">
+                <input type="text" id="loginUser" class="login-input" placeholder="USUÁRIO" autocomplete="off">
+            </div>
+            <div class="login-input-group">
+                <input type="password" id="loginPass" class="login-input" placeholder="SENHA" onkeyup="if(event.key==='Enter') fazerLogin()">
+            </div>
+            <div id="loginError" class="login-error">Credenciais inválidas!</div>
+            <button class="login-btn" onclick="fazerLogin()">ACESSAR SISTEMA</button>
+        </div>
+    </div>
+
+    <div class="navbar no-print">
+        <div class="brand"><i class="fas fa-cash-register"></i> Sys-Ualas v4.2</div>
+        <div style="display:flex; align-items:center; flex-wrap: wrap; justify-content: center;">
+            <div class="user-info"><i class="fas fa-user-circle"></i> <span id="lblUser">...</span></div>
+            <div class="menu-superior" style="display:flex;">
+                <button class="nav-btn active" onclick="showScreen('pdv')" id="nav-pdv"><i class="fas fa-shopping-cart"></i> VENDAS</button>
+                <button class="nav-btn" onclick="showScreen('dashboard')" id="nav-dashboard"><i class="fas fa-chart-pie"></i> GESTÃO</button>
+                <button class="nav-btn" onclick="showScreen('config')" id="nav-config"><i class="fas fa-cog"></i> CONFIG</button>
+                <button class="nav-btn btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-pdv" class="screen active no-print">
+        <div class="left-panel">
+            <div class="card-pdv">
+                <div class="vendedora-loja" style="display:flex; gap:15px;">
+                    <div class="input-group" style="flex:1;">
+                        <label>VENDEDORA</label>
+                        <input type="text" id="inputVendedora" class="input-control">
+                    </div>
+                    <div class="input-group" style="flex:1;">
+                        <label>LOJA</label>
+                        <select id="selLoja" class="input-control">
+                            <option>KIDS CENTRO</option><option>KIDS OLIVIA</option>
+                            <option>BLESS CENTRO</option><option>BLESS OLIVIA</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="dados-cliente" style="display:flex; gap:15px;">
+                    <div class="input-group" style="flex:2;">
+                        <label>CLIENTE</label>
+                        <input type="text" id="cliNome" class="input-control" placeholder="Nome">
+                    </div>
+                    <div class="input-group" style="flex:1;">
+                        <label>TEL</label>
+                        <input type="text" id="cliTel" class="input-control" placeholder="(XX) 9...">
+                    </div>
+                </div>
+                <div class="input-group"><label>CPF</label><input type="text" id="cliCpf" class="input-control" placeholder="000..."></div>
+            </div>
+
+            <div class="card-pdv">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0; color:#1e3a8a;"><i class="fas fa-barcode"></i> PRODUTOS</h3>
+                    <small id="dbCount" style="color:#16a34a; font-weight:700;">0 Itens</small>
+                </div>
+                <button id="btnPriceToggle" class="price-toggle" onclick="togglePreco()">TABELA: PREÇO 1</button>
+                <div style="position: relative;">
+                    <input type="text" id="searchInput" class="input-control" placeholder="Código ou Nome..." autocomplete="off">
+                    <div id="searchResult"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <h3 style="margin:0; padding-bottom:10px; border-bottom:1px solid #e2e8f0; color:#1e3a8a;">CUPOM</h3>
+            <div id="cartList"><div style="text-align:center; margin-top:50px; color:#cbd5e1;">Vazio</div></div>
+
+            <div class="financial-area">
+                <div class="fin-row"><span>Subtotal</span><strong id="lblSubtotal">R$ 0,00</strong></div>
+                <div class="fin-row">
+                    <span>Desconto</span>
+                    <div style="display:flex; gap:5px;">
+                        <input type="number" id="inputDesconto" class="input-control" style="width:70px;" placeholder="0" oninput="calcTotals()">
+                        <select id="tipoDesconto" class="input-control" style="width:60px;" onchange="calcTotals()"><option value="%">%</option><option value="R$">R$</option></select>
+                    </div>
+                </div>
+                <div class="fin-total">R$ <span id="lblTotalFinal">0,00</span></div>
+            </div>
+
+            <div style="margin-top:10px;">
+                <label>PAGAMENTO</label>
+                <select id="selPagamento" class="input-control" onchange="checkMoney()">
+                    <option value="DINHEIRO">DINHEIRO</option><option value="PIX">PIX</option>
+                    <option value="CARTAO DE CREDITO">CARTÃO DE CRÉDITO</option><option value="PROMISSORIA">PROMISSÓRIA</option>
+                </select>
+            </div>
+
+            <div id="divTroco">
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;"><label>RECEBIDO</label><input type="number" id="inputRecebido" class="input-control" oninput="calcChange()"></div>
+                    <div style="flex:1; text-align:right;"><label>TROCO</label><div id="lblTroco">R$ 0,00</div></div>
+                </div>
+            </div>
+            <button class="btn-finalize" onclick="finalizarVenda()">FINALIZAR (F5)</button>
+        </div>
+    </div>
+
+    <script>
+        const db = new Dexie("PDV_Contingencia_DB");
+        db.version(3).stores({
+            usuarios: '++id, login', 
+            produtos: 'codigo, descricao, preco, preco2, categoria', 
+            vendas: 'id, data, status_sinc',
+            logs: '++id, data'
+        });
+
+        let cart = [], usarPreco2 = false, currentUser = null; 
+        let globalSubtotal = 0, globalTotalFinal = 0;
+
+        async function init() {
+            if(!db.isOpen()) await db.open();
+            if(await db.usuarios.count() === 0) {
+                await db.usuarios.add({ login: 'UALAS', senha: '123', perfil: 'admin' });
+            }
+            atualizarStatus();
+        }
+        init();
+
+        async function fazerLogin() {
+            const login = document.getElementById('loginUser').value.trim().toUpperCase();
+            const pass = document.getElementById('loginPass').value;
+            const user = await db.usuarios.where('login').equals(login).first();
+            if(user && user.senha === pass) {
+                currentUser = user;
+                document.getElementById('screen-login').classList.add('hidden');
+                document.getElementById('lblUser').innerText = user.login;
+                document.getElementById('inputVendedora').value = user.login;
+                showScreen('pdv');
+            } else { document.getElementById('loginError').style.display = 'block'; }
+        }
+
+        function showScreen(name) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById(`screen-${name}`);
+            if(target) target.classList.add('active');
+            const btn = document.getElementById(`nav-${name}`);
+            if(btn) btn.classList.add('active');
+        }
+
+        function togglePreco() {
+            usarPreco2 = !usarPreco2;
+            const btn = document.getElementById('btnPriceToggle');
+            btn.innerText = usarPreco2 ? "TABELA: PREÇO 2" : "TABELA: PREÇO 1";
+            btn.classList.toggle('active-p2', usarPreco2);
+            calcTotals();
+        }
+
+        function calcTotals() {
+            globalSubtotal = cart.reduce((acc, item) => acc + (item.qtd * (usarPreco2 ? item.preco2 : item.preco)), 0);
+            const desc = parseFloat(document.getElementById('inputDesconto').value) || 0;
+            const tipo = document.getElementById('tipoDesconto').value;
+            const vlrDesc = (tipo === '%') ? globalSubtotal * (desc/100) : desc;
+            globalTotalFinal = Math.max(0, globalSubtotal - vlrDesc);
+            document.getElementById('lblSubtotal').innerText = globalSubtotal.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+            document.getElementById('lblTotalFinal').innerText = globalTotalFinal.toLocaleString('pt-BR', {minimumFractionDigits:2});
+        }
+
+        function logout() { location.reload(); }
+        async function atualizarStatus() { document.getElementById('dbCount').innerText = (await db.produtos.count()) + " Itens"; }
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(reg => console.log('PWA Ativo!'));
+            });
+        }
+    </script>
+</body>
+</html>
