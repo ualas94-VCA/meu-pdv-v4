@@ -109,38 +109,62 @@
                 color: black;
             }
         }
-/* --- INÍCIO DA ÁREA SEGURA PARA MOBILE --- */
+/* --- ÁREA SEGURA PARA MOBILE TOTALMENTE VERTICAL --- */
 @media (max-width: 768px) {
-    /* 1. Organiza os blocos principais para empilharem em vez de espremer */
-    #screen-pdv, .container-principal { 
+    /* 1. Força o topo (Vendas/Gestão) a ficar em linhas separadas */
+    header, .top-buttons, .menu-superior { 
         display: flex !important;
         flex-direction: column !important;
-        padding: 5px !important;
-    }
-
-    /* 2. Ajusta as colunas de Vendedora, Loja, Cliente e CPF */
-    /* Aqui usamos 'flex: 1 1 100%' para que cada campo ocupe sua própria linha no celular */
-    .vendedora-loja, .dados-cliente {
-        display: flex !important;
-        flex-wrap: wrap !important;
+        align-items: center !important;
         gap: 10px !important;
     }
 
-    .vendedora-loja > div, .dados-cliente > div {
-        flex: 1 1 100% !important; /* Força 100% de largura no celular */
+    /* 2. Faz cada botão de navegação ocupar a largura toda */
+    .btn-nav, button.vendas, button.gestao {
+        width: 100% !important;
+        margin: 5px 0 !important;
+        display: block !important;
     }
 
-    /* 3. Melhora o tamanho dos inputs para o toque do dedo, sem mudar a função */
-    input, select, button {
-        height: 48px !important; /* Tamanho padrão de acessibilidade mobile */
-        font-size: 16px !important; /* Impede o zoom involuntário do navegador */
+    /* 3. EMPILHAMENTO TOTAL DO CABEÇALHO (Vendedor, Loja, Cliente, Tel, CPF) */
+    /* Forçamos qualquer container de grupo a virar coluna */
+    #screen-pdv, .container-principal, .vendedora-loja, .dados-cliente, .input-group {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        padding: 5px !important;
     }
 
-    /* 4. Garante que o Cupom fique visível abaixo dos campos de inserção */
+    /* Garante que CADA campo individual ocupe 100% da largura da linha */
+    .vendedora-loja > div, 
+    .dados-cliente > div, 
+    .input-group > div,
+    input, select {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        margin-bottom: 12px !important;
+    }
+
+    /* 4. ÁREA DE PRODUTOS ABAIXO DO CABEÇALHO */
+    .produtos-area, #area-insercao {
+        width: 100% !important;
+        order: 1 !important; /* Fica no meio */
+        margin-top: 15px !important;
+    }
+
+    /* 5. CUPOM FISCAL SEMPRE NO FINAL */
     #cupom-fiscal {
         width: 100% !important;
-        margin: 20px 0 !important;
-        order: 2; /* Garante que ele apareça depois dos produtos */
+        display: block !important;
+        order: 2 !important; /* Fica por último */
+        margin-top: 25px !important;
+        border-top: 2px dashed #ccc !important;
+    }
+
+    /* Ajuste de inputs para facilitar o toque */
+    input, select, button {
+        height: 50px !important;
+        font-size: 16px !important;
     }
 }
 /* --- FIM DA ÁREA SEGURA --- */
