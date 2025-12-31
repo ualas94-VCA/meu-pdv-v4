@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sys-Ualas PDV v4.1.4</title>
+    <title>Sys-Ualas PDV v4.1.5</title>
     
     <meta name="theme-color" content="#1e3a8a">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22,6 +22,7 @@
         .brand { font-size: 1.2rem; font-weight: 800; color: #1e3a8a; }
         .nav-btn { background: #f1f5f9; color: #475569; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; }
         .nav-btn.active { background: #1e3a8a; color: white; }
+        .btn-limpar { background: #ef4444; color: white; }
 
         /* TELAS */
         .screen { display: none; padding: 20px; width: 100%; }
@@ -42,6 +43,9 @@
         #screen-login { position: fixed; inset: 0; background: #0f172a; display: flex; justify-content: center; align-items: center; z-index: 2000; }
         .login-box { background: white; padding: 40px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; }
 
+        .item-carrinho { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; }
+        .remover-item { color: #ef4444; cursor: pointer; font-size: 1.2em; }
+
         @media (max-width: 768px) {
             .input-group-row { flex-direction: column !important; }
         }
@@ -52,7 +56,7 @@
     <div id="screen-login">
         <div class="login-box">
             <h1 style="color:#1e3a8a; margin:0;">SYS-UALAS</h1>
-            <p style="color:#64748b; margin-bottom:25px;">PDV v4.1.4 Pivot</p>
+            <p style="color:#64748b; margin-bottom:25px;">PDV v4.1.5 Pivot</p>
             <input type="text" id="loginUser" class="input-control" placeholder="USUÁRIO" autocomplete="off">
             <input type="password" id="loginPass" class="input-control" placeholder="SENHA" onkeyup="if(event.key==='Enter') fazerLogin()">
             <button class="nav-btn active" onclick="fazerLogin()" style="width:100%; justify-content:center; margin-top:20px; height:55px;">ACESSAR</button>
@@ -61,8 +65,9 @@
 
     <nav class="navbar no-print">
         <div class="brand">Sys-Ualas</div>
-        <div style="display:flex; gap:10px;">
+        <div style="display:flex; gap:10px; flex-wrap: wrap;">
             <button class="nav-btn active" id="nav-pdv" onclick="showScreen('pdv')">VENDAS</button>
+            <button class="nav-btn" id="nav-gestao" onclick="showScreen('gestao'); carregarVendasDia()">GESTÃO</button>
             <button class="nav-btn" id="nav-config" onclick="showScreen('config')">CONFIG</button>
         </div>
     </nav>
@@ -81,7 +86,7 @@
         </div>
 
         <div class="card-pdv">
-            <input type="text" id="searchInput" class="input-control" placeholder="Buscar produto..." autocomplete="off">
+            <input type="text" id="searchInput" class="input-control" placeholder="Digite código ou nome..." autocomplete="off">
             <div id="searchResult" style="display:none; border:1px solid #eee; margin-top:5px; max-height:200px; overflow-y:auto; background:white;"></div>
         </div>
 
@@ -91,7 +96,18 @@
             <div style="text-align:right; margin-top:15px;">
                 <div style="font-size:1.8rem; color:green; font-weight:800;">TOTAL: R$ <span id="lblTotalFinal">0,00</span></div>
             </div>
-            <button class="btn-finalize" onclick="finalizarVenda()">FINALIZAR VENDA</button>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-finalize" onclick="finalizarVenda()" style="flex:2;">FINALIZAR VENDA</button>
+                <button class="nav-btn btn-limpar" onclick="limparCarrinho()" style="flex:1;">LIMPAR</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-gestao" class="screen no-print">
+        <div class="card-pdv">
+            <h2>Vendas do Dia</h2>
+            <div style="font-size:1.3rem; margin:15px 0; text-align:center; color:#1e3a8a;" id="resumoDia">Carregando...</div>
+            <div id="listaVendas"></div>
         </div>
     </div>
 
@@ -113,7 +129,7 @@
         db.version(3).stores({
             usuarios: '++id, login', 
             produtos: 'codigo, descricao, preco, preco2', 
-            vendas: 'id, data'
+            vendas: '++id, data, total, vendedora, loja'
         });
 
         let cart = [], globalTotalFinal = 0;
@@ -132,14 +148,18 @@
             if(user && user.senha === s) {
                 document.getElementById('screen-login').classList.add('hidden');
                 document.getElementById('inputVendedora').value = user.login;
+                showScreen('pdv');
             } else { alert("Senha incorreta"); }
         }
 
         function showScreen(name) {
-            document.querySelectorAll('.screen').forEach(s => s.forEach(s => s.classList.remove('active')));
+            // CORREÇÃO DO BUG CRÍTICO
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(`screen-${name}`).classList.add('active');
+            
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`nav-${name}`).classList.add('active');
+            const btn = document.getElementById(`nav-${name}`);
+            if(btn) btn.classList.add('active');
         }
 
         async function importarProdutos() {
@@ -158,12 +178,12 @@
                     if(cols.length >= 3) {
                         prods.push({ 
                             codigo: cols[0].trim(), 
-                            descricao: cols[1].trim(), 
+                            descricao: cols[1].trim().toUpperCase(), 
                             preco: parseFloat(cols[2].replace(',', '.')) || 0 
                         });
                     }
-                    if(i % 100 === 0) {
-                        let pct = Math.floor((i / lines.length) * 100);
+                    if(i % 100 === 0 || i === lines.length - 1) {
+                        let pct = Math.floor((i / (lines.length - 1)) * 100);
                         barra.style.width = pct + '%';
                         texto.innerText = `Processando: ${pct}%`;
                     }
@@ -181,14 +201,38 @@
             document.getElementById('statusProd').innerText = count + " Produtos carregados.";
         }
 
-        // BUSCA E CARRINHO (Simplificado p/ teste)
+        // BUSCA PRIORIZANDO CÓDIGO
         document.getElementById('searchInput').addEventListener('input', async (e) => {
-            const term = e.target.value.toUpperCase();
-            if(term.length < 2) return;
-            const res = await db.produtos.where('descricao').startsWith(term).limit(5).toArray();
+            const term = e.target.value.trim();
+            if(term.length < 1) {
+                document.getElementById('searchResult').style.display = 'none';
+                return;
+            }
+            const upperTerm = term.toUpperCase();
+
+            let resultados = [];
+
+            // Primeiro: busca exata ou início por CÓDIGO
+            const porCodigo = await db.produtos.where('codigo').startsWithIgnoreCase(term).or('codigo').equalsIgnoreCase(term).limit(10).toArray();
+            resultados = [...porCodigo];
+
+            // Se não achou pelo código, busca na descrição
+            if(resultados.length === 0) {
+                resultados = await db.produtos.where('descricao').startsWith(upperTerm).limit(10).toArray();
+            }
+
             const box = document.getElementById('searchResult');
-            box.innerHTML = res.map(p => `<div onclick='add(${JSON.stringify(p)})' style='padding:10px; border-bottom:1px solid #eee;'>${p.descricao} - R$ ${p.preco}</div>`).join('');
-            box.style.display = 'block';
+            if(resultados.length > 0) {
+                box.innerHTML = resultados.map(p => 
+                    `<div onclick='add(${JSON.stringify(p)})' style='padding:12px; border-bottom:1px solid #eee;'>
+                        <strong>${p.codigo}</strong> - ${p.descricao} <br>
+                        <span style="color:green; font-weight:bold;">R$ ${p.preco.toFixed(2)}</span>
+                    </div>`
+                ).join('');
+                box.style.display = 'block';
+            } else {
+                box.style.display = 'none';
+            }
         });
 
         function add(p) {
@@ -198,16 +242,79 @@
             renderCart();
         }
 
-        function renderCart() {
-            globalTotalFinal = cart.reduce((acc, i) => acc + i.preco, 0);
-            document.getElementById('cartList').innerHTML = cart.map(i => `<div>${i.descricao} - R$ ${i.preco}</div>`).join('');
-            document.getElementById('lblTotalFinal').innerText = globalTotalFinal.toFixed(2);
+        function removerDoCarrinho(index) {
+            cart.splice(index, 1);
+            renderCart();
         }
 
-        function finalizarVenda() {
+        function limparCarrinho() {
+            if(confirm("Limpar todo o carrinho?")) {
+                cart = [];
+                renderCart();
+            }
+        }
+
+        function renderCart() {
+            globalTotalFinal = cart.reduce((acc, i) => acc + i.preco, 0);
+            const list = document.getElementById('cartList');
+            if(cart.length === 0) {
+                list.innerHTML = "<p style='color:#999; text-align:center;'>Carrinho vazio</p>";
+            } else {
+                list.innerHTML = cart.map((i, idx) => 
+                    `<div class="item-carrinho">
+                        <div>
+                            <strong>\( {i.codigo}</strong><br> \){i.descricao}<br>R$ ${i.preco.toFixed(2)}
+                        </div>
+                        <span class="remover-item" onclick="removerDoCarrinho(${idx})">✕</span>
+                    </div>`
+                ).join('');
+            }
+            document.getElementById('lblTotalFinal').innerText = globalTotalFinal.toFixed(2).replace('.', ',');
+        }
+
+        async function finalizarVenda() {
             if(cart.length === 0) return alert("Carrinho vazio");
-            alert("Venda de R$ " + globalTotalFinal.toFixed(2) + " salva com sucesso!");
-            cart = []; renderCart();
+
+            const venda = {
+                data: new Date(),
+                total: globalTotalFinal,
+                itens: [...cart],
+                vendedora: document.getElementById('inputVendedora').value,
+                loja: document.getElementById('selLoja').value
+            };
+
+            await db.vendas.add(venda);
+            alert(`Venda de R$ ${globalTotalFinal.toFixed(2).replace('.', ',')} finalizada e salva!`);
+            cart = [];
+            renderCart();
+        }
+
+        async function carregarVendasDia() {
+            const hoje = new Date();
+            hoje.setHours(0,0,0,0);
+            const amanha = new Date(hoje);
+            amanha.setDate(amanha.getDate() + 1);
+
+            const vendasHoje = await db.vendas.where('data').aboveOrEqual(hoje).below(amanha).toArray();
+
+            const totalDia = vendasHoje.reduce((acc, v) => acc + v.total, 0);
+            const qtdVendas = vendasHoje.length;
+
+            document.getElementById('resumoDia').innerHTML = 
+                `<strong>\( {qtdVendas} venda \){qtdVendas === 1 ? '' : 's'}</strong> - Total: <strong style="color:green;">R$ ${totalDia.toFixed(2).replace('.', ',')}</strong>`;
+
+            const lista = document.getElementById('listaVendas');
+            if(vendasHoje.length === 0) {
+                lista.innerHTML = "<p style='text-align:center; color:#999;'>Nenhuma venda hoje</p>";
+            } else {
+                lista.innerHTML = vendasHoje.reverse().map(v => 
+                    `<div style="padding:10px; border-bottom:1px solid #eee;">
+                        <strong>${v.data.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</strong> - 
+                        \( {v.vendedora} ( \){v.loja})<br>
+                        R$ \( {v.total.toFixed(2).replace('.', ',')} ( \){v.itens.length} item${v.itens.length === 1 ? '' : 'ns'})
+                    </div>`
+                ).join('');
+            }
         }
     </script>
 </body>
