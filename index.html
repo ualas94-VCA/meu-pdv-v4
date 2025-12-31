@@ -1,227 +1,351 @@
+analise esse script:
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SYS-Ualas PDV</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sys-Ualas PDV v4.3</title>
+    
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* ============================================================
+           1. ESTILOS BASE E RESPONSIVIDADE
+           ============================================================ */
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; min-height: 100vh; }
+        .hidden { display: none !important; }
+        
+        /* NAVBAR COM MENU HAMBURGER */
+        .navbar { 
+            background-color: #ffffff; 
+            height: 65px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 0 20px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+            position: sticky; 
+            top: 0; 
+            z-index: 1000; 
+        }
+        .brand { font-size: 1.2rem; font-weight: 800; color: #1e3a8a; display: flex; align-items: center; gap: 8px; }
+        
+        /* Menu Desktop */
+        .menu-container { display: flex; align-items: center; gap: 10px; }
+        
+        /* Menu Mobile (Hamburger) */
+        .hamburger { display: none; font-size: 24px; color: #1e3a8a; cursor: pointer; background: none; border: none; }
+        
+        @media (max-width: 768px) {
+            .hamburger { display: block; }
+            .menu-container { 
+                display: none; /* Esconde por padrão no mobile */
+                position: absolute; 
+                top: 65px; 
+                left: 0; 
+                width: 100%; 
+                background: white; 
+                flex-direction: column; 
+                padding: 20px; 
+                box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+                border-top: 1px solid #eee;
+            }
+            .menu-container.show { display: flex; }
+            .nav-btn { width: 100%; justify-content: flex-start; }
+            
+            /* Ajustes PDV Mobile */
+            #screen-pdv { flex-direction: column !important; padding: 10px !important; }
+            .left-panel, .right-panel { width: 100% !important; min-width: 100% !important; }
+            .vendedora-loja, .dados-cliente { flex-direction: column !important; }
+            input, select, .price-toggle { height: 50px !important; font-size: 16px !important; }
+            .btn-finalize { height: 65px !important; margin-bottom: 50px !important; }
+        }
 
-<style>
-*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
-body{margin:0;background:#f4f6f9}
+        /* BOTÕES E CARDS */
+        .nav-btn { background: #f1f5f9; color: #475569; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .nav-btn.active { background: #1e3a8a; color: white; }
+        .btn-logout { background: #fef2f2; color: #ef4444; }
+        .screen { display: none; padding: 20px; }
+        .screen.active { display: flex; flex-direction: column; }
+        .card-pdv { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #f1f5f9; }
+        .input-control { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; margin-top: 5px; font-size: 1rem; }
+        
+        /* LOGIN */
+        #screen-login { position: fixed; inset: 0; background: #0f172a; display: flex; justify-content: center; align-items: center; z-index: 2000; }
+        .login-box { background: white; padding: 40px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; }
 
-/* NAVBAR */
-#navbar{
-  display:none;
-  height:50px;
-  background:#1e3a8a;
-  color:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 15px;
-}
-#navbar button{
-  background:#ef4444;
-  border:none;
-  color:#fff;
-  padding:6px 12px;
-  border-radius:5px;
-}
-
-/* TELAS */
-.screen{display:none;padding:15px}
-.screen.active{display:flex;flex-direction:column}
-
-/* LOGIN */
-#screen-login{
-  min-height:100vh;
-  background:linear-gradient(135deg,#020617,#1e293b);
-  justify-content:center;
-  align-items:center;
-}
-.login-box{
-  background:#fff;
-  width:100%;
-  max-width:360px;
-  padding:25px;
-  border-radius:10px;
-}
-.login-box h2{text-align:center;margin-bottom:20px}
-.login-box input{
-  width:100%;
-  padding:10px;
-  margin-bottom:10px;
-}
-.login-box button{
-  width:100%;
-  padding:10px;
-  background:#1e3a8a;
-  color:#fff;
-  border:none;
-  border-radius:6px;
-}
-
-/* PDV */
-#screen-pdv input{
-  padding:10px;
-  font-size:16px;
-  margin-bottom:10px;
-}
-#lista{
-  border:1px solid #ccc;
-  padding:10px;
-  margin-bottom:10px;
-}
-#lista div{
-  display:flex;
-  justify-content:space-between;
-}
-.total{
-  font-size:18px;
-  font-weight:bold;
-}
-.pdv-actions button{
-  padding:10px;
-  margin-top:5px;
-  font-size:16px;
-}
-</style>
+        /* TABELA E DASHBOARD */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .kpi-card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .kpi-val { font-size: 1.5rem; font-weight: 800; color: #1e3a8a; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        
+        /* IMPRESSÃO */
+        @media print {
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
 </head>
-
 <body>
 
-<!-- NAVBAR -->
-<div id="navbar">
-  <div>🧾 Sys-Ualas</div>
-  <div>
-    <span id="userLabel">ADMIN</span>
-    <button onclick="logout()">SAIR</button>
-  </div>
-</div>
+    <div id="screen-login">
+        <div class="login-box">
+            <h2 style="color:#1e3a8a; margin:0;">SYS-UALAS</h2>
+            <p style="color:#64748b; margin-bottom:25px;">PDV v4.3 Conectado</p>
+            <input type="text" id="loginUser" class="login-input input-control" placeholder="USUÁRIO">
+            <input type="password" id="loginPass" class="login-input input-control" placeholder="SENHA" onkeyup="if(event.key==='Enter') fazerLogin()">
+            <div id="loginError" style="color:red; display:none; margin-top:10px;">Acesso negado!</div>
+            <button class="nav-btn active" onclick="fazerLogin()" style="width:100%; justify-content:center; margin-top:20px; height:50px;">ENTRAR</button>
+        </div>
+    </div>
 
-<!-- LOGIN -->
-<div id="screen-login" class="screen active">
-  <div class="login-box">
-    <h2>SYS-UALAS</h2>
-    <input id="login-user" placeholder="Usuário">
-    <input id="login-pass" type="password" placeholder="Senha">
-    <button onclick="login()">ENTRAR</button>
-    <p id="login-error" style="color:red;text-align:center"></p>
-  </div>
-</div>
+    <nav class="navbar no-print">
+        <div class="brand"><i class="fas fa-cash-register"></i> Sys-Ualas</div>
+        <button class="hamburger" onclick="toggleMenu()"><i class="fas fa-bars"></i></button>
+        
+        <div class="menu-container" id="mainMenu">
+            <div class="user-info" id="lblUser">...</div>
+            <button class="nav-btn active" onclick="showScreen('pdv')"><i class="fas fa-shopping-cart"></i> VENDAS</button>
+            <button class="nav-btn" onclick="showScreen('dashboard')" id="btnGestao"><i class="fas fa-chart-pie"></i> GESTÃO</button>
+            <button class="nav-btn" onclick="showScreen('config')" id="btnConfig"><i class="fas fa-cog"></i> CONFIG</button>
+            <button class="nav-btn btn-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> SAIR</button>
+        </div>
+    </nav>
 
-<!-- PDV -->
-<div id="screen-pdv" class="screen">
-  <h2>PDV - Venda</h2>
+    <div id="screen-pdv" class="screen active no-print" style="display:flex; flex-direction:row; gap:20px;">
+        <div class="left-panel" style="flex:1.5;">
+            <div class="card-pdv">
+                <div class="vendedora-loja" style="display:flex; gap:10px;">
+                    <div style="flex:1;"><label>VENDEDOR(A)</label><input type="text" id="inputVendedora" class="input-control"></div>
+                    <div style="flex:1;"><label>LOJA</label>
+                        <select id="selLoja" class="input-control">
+                            <option>LOJA 01</option><option>LOJA 02</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="dados-cliente" style="display:flex; gap:10px; margin-top:10px;">
+                    <div style="flex:2;"><label>CLIENTE</label><input type="text" id="cliNome" class="input-control"></div>
+                    <div style="flex:1;"><label>TEL</label><input type="text" id="cliTel" class="input-control"></div>
+                </div>
+                <div style="margin-top:10px;"><label>CPF</label><input type="text" id="cliCpf" class="input-control"></div>
+            </div>
 
-  <input id="produto" placeholder="Produto">
-  <input id="valor" type="number" step="0.01" placeholder="Valor">
+            <div class="card-pdv">
+                <button id="btnPriceToggle" class="nav-btn" onclick="togglePreco()" style="width:100%; margin-bottom:10px; justify-content:center;">TABELA: PREÇO 1</button>
+                <input type="text" id="searchInput" class="input-control" placeholder="Buscar código ou nome..." autocomplete="off">
+                <div id="searchResult" style="background:white; border:1px solid #eee; display:none; max-height:200px; overflow-y:auto; margin-top:5px;"></div>
+            </div>
+        </div>
 
-  <button onclick="addItem()">Adicionar</button>
+        <div class="right-panel" style="flex:1; background:white; border-radius:12px; padding:15px; display:flex; flex-direction:column; min-height:400px;">
+            <h3 style="margin-top:0;">CUPOM</h3>
+            <div id="cartList" style="flex:1; overflow-y:auto;"></div>
+            
+            <div style="background:#f8fafc; padding:10px; border-radius:8px; margin-top:10px;">
+                <div style="display:flex; justify-content:space-between;"><span>Subtotal</span><b id="lblSubtotal">R$ 0,00</b></div>
+                <div style="display:flex; align-items:center; gap:5px; margin-top:5px;">
+                    <span>Desc.</span>
+                    <input type="number" id="inputDesconto" style="width:60px;" oninput="calcTotals()">
+                    <select id="tipoDesconto" onchange="calcTotals()"><option value="%">%</option><option value="R$">R$</option></select>
+                </div>
+                <div style="font-size:1.5rem; font-weight:bold; color:green; text-align:right; margin-top:10px;">Total: R$ <span id="lblTotalFinal">0,00</span></div>
+            </div>
+            
+            <select id="selPagamento" class="input-control" style="margin-top:10px;" onchange="checkMoney()">
+                <option value="DINHEIRO">DINHEIRO</option><option value="PIX">PIX</option><option value="CARTÃO">CARTÃO</option>
+            </select>
+            <div id="divTroco" style="display:none; margin-top:10px; background:#fffbeb; padding:5px;">
+                Recebido: <input type="number" id="inputRecebido" style="width:80px;" oninput="calcChange()"> Troco: <span id="lblTroco">0,00</span>
+            </div>
+            <button class="nav-btn active" onclick="finalizarVenda()" style="width:100%; margin-top:15px; justify-content:center; height:55px;">FINALIZAR (F5)</button>
+        </div>
+    </div>
 
-  <div id="lista"></div>
+    <div id="screen-dashboard" class="screen no-print">
+        <h2>Dashboard de Vendas</h2>
+        <div class="kpi-grid">
+            <div class="kpi-card"><div class="kpi-val" id="kpiTotal">R$ 0,00</div><small>Total Hoje</small></div>
+            <div class="kpi-card"><div class="kpi-val" id="kpiPedidos">0</div><small>Vendas</small></div>
+        </div>
+        <table>
+            <thead><tr><th>Hora</th><th>Vendedor</th><th>Total</th><th>Ações</th></tr></thead>
+            <tbody id="dashTableBody"></tbody>
+        </table>
+    </div>
 
-  <div class="total">TOTAL: R$ <span id="total">0.00</span></div>
+    <div id="screen-config" class="screen no-print">
+        <h2>Configurações</h2>
+        <div class="card-pdv">
+            <h3>Importar Produtos (Link CSV)</h3>
+            <input type="text" id="urlCsv" class="input-control" placeholder="URL do Google Sheets...">
+            <button class="nav-btn active" onclick="importarViaLink()" style="margin-top:10px;">BAIXAR PRODUTOS</button>
+        </div>
+        <div class="card-pdv">
+            <button class="nav-btn btn-logout" onclick="zerarBanco()" style="width:100%; justify-content:center;">APAGAR TODOS OS DADOS</button>
+        </div>
+    </div>
 
-  <div class="pdv-actions">
-    <button onclick="finalizar()">Finalizar & Imprimir</button>
-    <button onclick="limpar()">Nova Venda</button>
-  </div>
-</div>
+    <div id="printArea"></div>
 
-<script>
-/* USUÁRIOS */
-const users = {
-  admin:{senha:"123",role:"admin"}
-};
+    <script>
+        /* ============================================================
+           2. LÓGICA DO SISTEMA
+           ============================================================ */
+        const db = new Dexie("PDV_Contingencia_DB");
+        db.version(3).stores({
+            usuarios: '++id, login', 
+            produtos: 'codigo, descricao, preco, preco2', 
+            vendas: 'id, data, status_sinc'
+        });
 
-/* ESTADO */
-let venda = [];
-let total = 0;
+        let cart = [], usarPreco2 = false, currentUser = null;
+        let globalSubtotal = 0, globalTotalFinal = 0;
 
-/* TELAS */
-function show(id){
-  document.querySelectorAll('.screen').forEach(s=>{
-    s.classList.remove('active');
-  });
-  document.getElementById(id).classList.add('active');
-}
+        async function init() {
+            if(!db.isOpen()) await db.open();
+            if(await db.usuarios.count() === 0) {
+                await db.usuarios.add({ login: 'UALAS', senha: '123', perfil: 'admin' });
+            }
+            atualizarStatus();
+        }
+        init();
 
-/* LOGIN */
-function login(){
-  const u = document.getElementById('login-user').value;
-  const p = document.getElementById('login-pass').value;
-  const err = document.getElementById('login-error');
+        // NAVEGAÇÃO
+        function toggleMenu() { document.getElementById('mainMenu').classList.toggle('show'); }
 
-  if(users[u] && users[u].senha === p){
-    document.getElementById('navbar').style.display="flex";
-    document.getElementById('userLabel').innerText = u.toUpperCase();
-    err.innerText="";
-    show('screen-pdv');
-  }else{
-    err.innerText="Usuário ou senha inválidos";
-  }
-}
+        function showScreen(name) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(`screen-${name}`).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            toggleMenu(); // Fecha menu ao clicar
+            if(name === 'dashboard') loadDashboard();
+        }
 
-function logout(){
-  venda=[];
-  total=0;
-  atualizar();
-  document.getElementById('navbar').style.display="none";
-  show('screen-login');
-}
+        // LOGIN
+        async function fazerLogin() {
+            const u = document.getElementById('loginUser').value.toUpperCase();
+            const s = document.getElementById('loginPass').value;
+            const user = await db.usuarios.where('login').equals(u).first();
+            if(user && user.senha === s) {
+                currentUser = user;
+                document.getElementById('screen-login').style.display = 'none';
+                document.getElementById('lblUser').innerText = user.login;
+                document.getElementById('inputVendedora').value = user.login;
+                if(user.perfil !== 'admin') {
+                    document.getElementById('btnGestao').style.display = 'none';
+                    document.getElementById('btnConfig').style.display = 'none';
+                }
+            } else { document.getElementById('loginError').style.display = 'block'; }
+        }
 
-/* PDV */
-function addItem(){
-  const prod = document.getElementById('produto').value;
-  const val = parseFloat(document.getElementById('valor').value);
-  if(!prod || !val) return;
+        // PDV BUSCA
+        document.getElementById('searchInput').addEventListener('input', async (e) => {
+            const term = e.target.value.toUpperCase();
+            if(term.length < 2) return;
+            const prods = await db.produtos.where('descricao').startsWith(term).limit(10).toArray();
+            const res = document.getElementById('searchResult');
+            res.innerHTML = prods.map(p => `<div onclick='addToCart(${JSON.stringify(p)})' style='padding:10px; border-bottom:1px solid #eee; cursor:pointer;'>${p.codigo} - ${p.descricao} (R$ ${p.preco})</div>`).join('');
+            res.style.display = 'block';
+        });
 
-  venda.push({prod,val});
-  total += val;
-  atualizar();
+        function addToCart(p) {
+            cart.push({...p, qtd: 1});
+            document.getElementById('searchResult').style.display = 'none';
+            document.getElementById('searchInput').value = '';
+            updateCart();
+        }
 
-  document.getElementById('produto').value="";
-  document.getElementById('valor').value="";
-}
+        function updateCart() {
+            const list = document.getElementById('cartList');
+            list.innerHTML = cart.map((item, idx) => `
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span>${item.descricao}</span>
+                    <span>${item.qtd}x <button onclick="remove(${idx})">X</button></span>
+                </div>
+            `).join('');
+            calcTotals();
+        }
 
-function atualizar(){
-  const lista = document.getElementById('lista');
-  lista.innerHTML="";
-  venda.forEach(i=>{
-    const d = document.createElement('div');
-    d.innerHTML = `<span>${i.prod}</span><span>R$ ${i.val.toFixed(2)}</span>`;
-    lista.appendChild(d);
-  });
-  document.getElementById('total').innerText = total.toFixed(2);
-}
+        function remove(idx) { cart.splice(idx,1); updateCart(); }
 
-function limpar(){
-  venda=[];
-  total=0;
-  atualizar();
-}
+        function calcTotals() {
+            globalSubtotal = cart.reduce((acc, i) => acc + (i.preco * i.qtd), 0);
+            const desc = parseFloat(document.getElementById('inputDesconto').value) || 0;
+            const vlrDesc = document.getElementById('tipoDesconto').value === '%' ? globalSubtotal * (desc/100) : desc;
+            globalTotalFinal = globalSubtotal - vlrDesc;
+            document.getElementById('lblSubtotal').innerText = "R$ " + globalSubtotal.toFixed(2);
+            document.getElementById('lblTotalFinal').innerText = globalTotalFinal.toFixed(2);
+        }
 
-/* IMPRESSÃO TEXTO PURO 80MM */
-function finalizar(){
-  let txt = "";
-  txt += "SYS-UALAS\n";
-  txt += "--------------------------\n";
-  venda.forEach(i=>{
-    txt += `${i.prod}\nR$ ${i.val.toFixed(2)}\n`;
-  });
-  txt += "--------------------------\n";
-  txt += `TOTAL: R$ ${total.toFixed(2)}\n`;
-  txt += "\n\n";
+        function checkMoney() { document.getElementById('divTroco').style.display = (document.getElementById('selPagamento').value === 'DINHEIRO' ? 'block' : 'none'); }
+        function calcChange() { 
+            const rec = parseFloat(document.getElementById('inputRecebido').value) || 0;
+            document.getElementById('lblTroco').innerText = (rec - globalTotalFinal).toFixed(2);
+        }
 
-  const w = window.open("");
-  w.document.write("<pre>"+txt+"</pre>");
-  w.print();
-  w.close();
+        // FINALIZAR E DASHBOARD
+        async function finalizarVenda() {
+            if(!cart.length) return alert("Carrinho vazio");
+            const venda = {
+                id: Date.now(),
+                data: new Date(),
+                vendedora: document.getElementById('inputVendedora').value,
+                total: globalTotalFinal,
+                itens: cart
+            };
+            await db.vendas.add(venda);
+            alert("Venda Salva!");
+            cart = []; updateCart();
+        }
 
-  limpar();
-}
-</script>
+        async function loadDashboard() {
+            const vendas = await db.vendas.toArray();
+            const total = vendas.reduce((acc, v) => acc + v.total, 0);
+            document.getElementById('kpiTotal').innerText = "R$ " + total.toFixed(2);
+            document.getElementById('kpiPedidos').innerText = vendas.length;
+            document.getElementById('dashTableBody').innerHTML = vendas.map(v => `
+                <tr>
+                    <td>${new Date(v.data).toLocaleTimeString()}</td>
+                    <td>${v.vendedora}</td>
+                    <td>R$ ${v.total.toFixed(2)}</td>
+                    <td><button onclick="alert('Imprimindo...')">P</button></td>
+                </tr>
+            `).join('');
+        }
 
+        async function importarViaLink() {
+            const url = document.getElementById('urlCsv').value;
+            const res = await fetch(url);
+            const text = await res.text();
+            const lines = text.split('\n');
+            const prods = lines.slice(1).map(l => {
+                const c = l.split(';');
+                return { codigo: c[0], descricao: c[1], preco: parseFloat(c[2]) };
+            });
+            await db.produtos.clear();
+            await db.produtos.bulkPut(prods);
+            alert("Sincronizado!");
+            atualizarStatus();
+        }
+
+        async function zerarBanco() { if(confirm("Apagar tudo?")) { await db.vendas.clear(); await db.produtos.clear(); location.reload(); } }
+        async function atualizarStatus() { console.log("Produtos no banco:", await db.produtos.count()); }
+        function logout() { location.reload(); }
+
+        // PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); });
+        }
+    </script>
 </body>
 </html>
