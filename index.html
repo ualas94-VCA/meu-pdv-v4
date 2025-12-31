@@ -2,25 +2,29 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Sys-Ualas PDV v5.0</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sys-Ualas PDV v5.1</title>
 
 <meta name="theme-color" content="#1e3a8a">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.json">
 
 <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Segoe UI,sans-serif;background:#f3f4f6}
 .hidden{display:none}
 .screen{display:none;padding:15px}
-.screen.active{display:block}
-.navbar{height:60px;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 15px;box-shadow:0 2px 5px rgba(0,0,0,.1)}
-.nav-btn{padding:10px;border:none;border-radius:6px;font-weight:600;cursor:pointer}
-.primary{background:#1e3a8a;color:#fff}
-.card{background:#fff;padding:15px;border-radius:10px;margin-bottom:10px}
-input,select{width:100%;padding:10px;margin-top:5px;font-size:16px}
+.screen.active{display:flex;flex-direction:column}
+.navbar{height:65px;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.brand{font-weight:800;color:#1e3a8a}
+.nav-btn{background:#f1f5f9;border:none;padding:10px 15px;border-radius:8px;font-weight:600;cursor:pointer}
+.nav-btn.active{background:#1e3a8a;color:#fff}
+.btn-logout{background:#fef2f2;color:#ef4444}
+.card{background:#fff;padding:15px;border-radius:12px;margin-bottom:10px}
+input,select{width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:8px;font-size:16px}
 
 @media print{
 body *{visibility:hidden}
@@ -29,90 +33,96 @@ body *{visibility:hidden}
 }
 </style>
 </head>
+
 <body>
 
 <!-- LOGIN -->
-<div id="screen-login" class="screen active">
-  <div class="card">
-    <h2>SYS-UALAS PDV</h2>
+<div id="screen-login" class="screen active" style="background:#0f172a;justify-content:center;align-items:center">
+  <div class="card" style="max-width:400px;width:100%">
+    <h2 style="color:#1e3a8a;text-align:center">SYS-UALAS</h2>
     <input id="loginUser" placeholder="Usuário">
     <input id="loginPass" type="password" placeholder="Senha">
-    <button class="nav-btn primary" onclick="login()">Entrar</button>
-    <div id="loginError" style="color:red;display:none">Acesso negado</div>
+    <button class="nav-btn active" onclick="login()" style="width:100%;margin-top:10px">ENTRAR</button>
+    <div id="loginError" style="color:red;display:none;text-align:center;margin-top:10px">Acesso negado</div>
   </div>
 </div>
 
+<!-- NAVBAR -->
+<nav class="navbar no-print hidden" id="navbar">
+  <div class="brand"><i class="fas fa-cash-register"></i> Sys-Ualas</div>
+  <div>
+    <span id="lblUser"></span>
+    <button class="nav-btn btn-logout" onclick="logout()">SAIR</button>
+  </div>
+</nav>
+
 <!-- PDV -->
-<div id="screen-pdv" class="screen">
+<div id="screen-pdv" class="screen hidden no-print">
   <div class="card">
     <label>Vendedor</label>
-    <input id="vendedor">
+    <input id="inputVendedor">
   </div>
 
   <div class="card">
-    <input id="busca" placeholder="Buscar produto">
-    <div id="resultado"></div>
+    <input id="searchInput" placeholder="Buscar produto">
+    <div id="searchResult"></div>
   </div>
 
   <div class="card">
-    <h3>Cupom</h3>
-    <div id="cart"></div>
-    <b>Total: R$ <span id="total">0.00</span></b>
-    <button class="nav-btn primary" onclick="finalizarVenda()">Finalizar</button>
+    <h3>CUPOM</h3>
+    <div id="cartList"></div>
+    <h2 style="text-align:right">Total: R$ <span id="lblTotal">0,00</span></h2>
+    <button class="nav-btn active" onclick="finalizarVenda()" style="width:100%">FINALIZAR (F5)</button>
   </div>
 </div>
 
 <div id="printArea"></div>
 
 <script>
-/* ================= BANCO ================= */
-const db = new Dexie("PDV_DB_V5");
+/* ===================== BANCO ===================== */
+const db = new Dexie("PDV_SYS_UALAS");
 db.version(1).stores({
   usuarios:'login',
   produtos:'codigo,descricao',
-  vendas:'id,data',
+  vendas:'id,data,status_sinc',
   logs:'++id,tipo,data'
 });
 
-/* ================= UTIL ================= */
+/* ===================== UTIL ===================== */
 async function hash(txt){
-  const b = new TextEncoder().encode(txt);
-  const h = await crypto.subtle.digest("SHA-256",b);
-  return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('');
+  const enc=new TextEncoder().encode(txt);
+  const buf=await crypto.subtle.digest("SHA-256",enc);
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
-function log(tipo,info){
-  db.logs.add({tipo,info,data:new Date()});
-}
+function log(tipo,info){db.logs.add({tipo,info,data:new Date()});}
 function show(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
 }
 
-/* ================= ESTADO ================= */
-let user=null;
-let venda={
-  id:null,
-  vendedor:'',
-  itens:[],
-  total:0
-};
+/* ===================== ESTADO ===================== */
+let currentUser=null;
+let venda={itens:[],total:0};
 
-/* ================= INIT ================= */
+/* ===================== INIT ===================== */
 (async()=>{
   await db.open();
-  if(await db.usuarios.count()==0){
-    await db.usuarios.add({login:'ADMIN',senha:await hash('123')});
+  if(await db.usuarios.count()===0){
+    await db.usuarios.add({login:'ADMIN',senha:await hash('123'),perfil:'admin'});
   }
 })();
 
-/* ================= LOGIN ================= */
+/* ===================== LOGIN ===================== */
 async function login(){
   const u=document.getElementById('loginUser').value.toUpperCase();
-  const s=await hash(document.getElementById('loginPass').value);
+  const p=await hash(document.getElementById('loginPass').value);
   const usr=await db.usuarios.get(u);
-  if(usr && usr.senha===s){
-    user=usr;
-    document.getElementById('vendedor').value=u;
+  if(usr && usr.senha===p){
+    currentUser=usr;
+    document.getElementById('lblUser').innerText=u;
+    document.getElementById('inputVendedor').value=u;
+    document.getElementById('screen-login').classList.add('hidden');
+    document.getElementById('navbar').classList.remove('hidden');
     show('screen-pdv');
     log('LOGIN',u);
   }else{
@@ -120,54 +130,63 @@ async function login(){
   }
 }
 
-/* ================= BUSCA ================= */
-document.getElementById('busca').addEventListener('input',async e=>{
+/* ===================== BUSCA ===================== */
+document.getElementById('searchInput').addEventListener('input',async e=>{
   const t=e.target.value.toUpperCase();
   if(t.length<2)return;
-  const r=await db.produtos.where('descricao').startsWith(t).limit(5).toArray();
-  document.getElementById('resultado').innerHTML=
-    r.map(p=>`<div onclick='addItem(${JSON.stringify(p)})'>${p.descricao}</div>`).join('');
+  const r=await db.produtos.where('descricao').startsWith(t).limit(8).toArray();
+  document.getElementById('searchResult').innerHTML=r.map(p=>
+    `<div onclick='addItem(${JSON.stringify(p)})' style="padding:8px;border-bottom:1px solid #eee;cursor:pointer">
+      ${p.codigo} - ${p.descricao} (R$ ${p.preco})
+    </div>`).join('');
 });
 
-/* ================= CARRINHO ================= */
+/* ===================== CARRINHO ===================== */
 function addItem(p){
   venda.itens.push({...p,qtd:1});
-  render();
+  renderCart();
 }
-function render(){
-  let t=0;
-  document.getElementById('cart').innerHTML=venda.itens.map(i=>{
-    t+=i.preco*i.qtd;
-    return `<div>${i.descricao} - R$ ${i.preco}</div>`;
+function renderCart(){
+  let total=0;
+  document.getElementById('cartList').innerHTML=venda.itens.map(i=>{
+    total+=i.preco*i.qtd;
+    return `<div style="display:flex;justify-content:space-between">
+      <span>${i.descricao}</span><b>R$ ${(i.preco*i.qtd).toFixed(2)}</b>
+    </div>`;
   }).join('');
-  venda.total=t;
-  document.getElementById('total').innerText=t.toFixed(2);
+  venda.total=total;
+  document.getElementById('lblTotal').innerText=total.toFixed(2);
 }
 
-/* ================= FINALIZAR ================= */
+/* ===================== FINALIZAR ===================== */
 async function finalizarVenda(){
   if(!venda.itens.length)return alert("Carrinho vazio");
   try{
-    venda.id=crypto.randomUUID();
-    venda.data=new Date();
-    venda.vendedor=document.getElementById('vendedor').value;
-    await db.vendas.add({...venda});
-    log('VENDA_OK',venda.id);
-    imprimir(venda);
+    const vendaFinal={
+      id:crypto.randomUUID(),
+      data:new Date(),
+      vendedor:document.getElementById('inputVendedor').value,
+      total:venda.total,
+      itens:venda.itens,
+      status_sinc:0
+    };
+    await db.vendas.add(vendaFinal);
+    log('VENDA_OK',vendaFinal.id);
+    imprimir(vendaFinal);
     venda={itens:[],total:0};
-    render();
+    renderCart();
   }catch(e){
     log('ERRO_VENDA',e.message);
     alert("Erro ao salvar venda");
   }
 }
 
-/* ================= IMPRESSÃO TEXTO PURO ================= */
+/* ===================== IMPRESSÃO ===================== */
 function imprimir(v){
   let txt="*** CUPOM ***\n";
-  txt+="Vendedor: "+v.vendedor+"\n\n";
+  txt+="VENDEDOR: "+v.vendedor+"\n\n";
   v.itens.forEach(i=>{
-    txt+=`${i.descricao}  ${i.qtd}x ${i.preco.toFixed(2)}\n`;
+    txt+=`${i.descricao}\n${i.qtd} x ${i.preco.toFixed(2)}\n`;
   });
   txt+="----------------\n";
   txt+="TOTAL: R$ "+v.total.toFixed(2);
@@ -175,10 +194,9 @@ function imprimir(v){
   window.print();
 }
 
-/* ================= PWA ================= */
-if('serviceWorker'in navigator){
-  navigator.serviceWorker.register('sw.js');
-}
+/* ===================== LOGOUT ===================== */
+function logout(){location.reload();}
 </script>
+
 </body>
 </html>
