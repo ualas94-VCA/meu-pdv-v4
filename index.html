@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sys-Ualas PDV v4.7</title>
+    <title>Sys-Ualas PDV v4.2</title>
     
     <meta name="theme-color" content="#1e3a8a">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -90,7 +90,7 @@
     <div id="screen-login">
       <div class="login-box">
     <h1 style="color:#1e3a8a; margin:0;">SYS-UALAS</h1>
-    <p style="color:#64748b; margin-bottom:25px;">PDV v4.1.6</p>
+    <p style="color:#64748b; margin-bottom:25px;">PDV v4.2</p>
     
     <input type="text" id="loginUser" class="input-control" placeholder="USUÁRIO" autocomplete="off">
     <input type="password" id="loginPass" class="input-control" placeholder="SENHA" onkeyup="if(event.key==='Enter') fazerLogin()">
@@ -205,6 +205,14 @@
             </button>
             <div id="progressoArea" class="progress-container"><div id="barraStatus" class="progress-bar"></div></div>
             <div id="textoProgresso" style="text-align:center; margin-top:5px; font-weight:bold; color:#1e3a8a;">Aguardando...</div>
+        </div>
+		<div class="card-pdv">
+            <h3>Importação Local (Arquivo)</h3>
+            <p style="font-size:0.8rem; color:#64748b;">Use caso esteja sem internet para baixar do GitHub.</p>
+            <input type="file" id="inputFileLocal" accept=".csv" class="input-control" style="padding-top:10px; height:auto;">
+            <button class="nav-btn active" onclick="importarLocal()" style="width:100%; justify-content:center; margin-top:10px; background:#f59e0b; color:black;">
+                <i class="fas fa-folder-open"></i> CARREGAR CSV DO COMPUTADOR
+            </button>
         </div>
 
         <div class="card-pdv">
@@ -490,7 +498,73 @@
             ).join('');
         }
 
-        async function zerarBanco() { if(confirm("Limpar tudo?")) { await db.produtos.clear(); await db.vendas.clear(); location.reload(); } }
+       	// ==========================================
+        // PARTE 2: IMPORTAÇÃO LOCAL (ARQUIVO CSV)
+        // ==========================================
+        function importarLocal() {
+            const fileInput = document.getElementById('inputFileLocal');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                return alert("Por favor, selecione um arquivo .csv no seu computador primeiro!");
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            // Dica: Se os acentos ficarem estranhos, mude 'UTF-8' para 'ISO-8859-1'
+            reader.readAsText(file, 'UTF-8');
+
+            reader.onload = async function(e) {
+                const rawText = e.target.result;
+                try {
+                    const lines = rawText.split(/\r?\n/).filter(l => l.trim() !== "");
+                    const prods = [];
+                    
+                    // Começa do 1 para pular o cabeçalho
+                    for(let i = 1; i < lines.length; i++) {
+                        const cols = lines[i].split(';');
+                        if(cols.length >= 3) {
+                            prods.push({ 
+                                codigo: cols[0].trim(), 
+                                descricao: cols[1].trim().toUpperCase(), 
+                                preco: parseFloat(cols[2].replace(',', '.')) || 0 
+                            });
+                        }
+                    }
+
+                    if (prods.length > 0) {
+                        await db.produtos.clear();
+                        await db.produtos.bulkPut(prods);
+                        alert(`SUCESSO!\n${prods.length} produtos importados do arquivo local.`);
+                        atualizarStatusProd();
+                        fileInput.value = ''; // Limpa o input
+                    } else {
+                        alert("O arquivo parece vazio ou fora do padrão (codigo;descricao;preco).");
+                    }
+                } catch (err) {
+                    alert("Erro ao processar arquivo: " + err.message);
+                }
+            };
+        }
+
+        // ==========================================
+        // PARTE 3: ZERAR BANCO COM SENHA (SEGURANÇA)
+        // Substitua a sua função zerarBanco antiga por esta
+        // ==========================================
+        async function zerarBanco() { 
+            const usuarioLogado = document.getElementById('inputVendedora').value;
+
+            // TRAVA DE SEGURANÇA: Só o UALAS pode apagar
+            if (usuarioLogado !== 'UALAS') {
+                return alert("⛔ ACESSO NEGADO!\nPor segurança, apenas o usuário 'UALAS' pode apagar o banco de dados.");
+            }
+
+            if(confirm("ATENÇÃO ADMIN (UALAS):\n\nIsso apagará TODAS as vendas e produtos locais.\nTem certeza absoluta?")) { 
+                await db.produtos.clear(); 
+                await db.vendas.clear(); 
+                location.reload(); 
+            } 
+        }
+	
     </script>
 </body>
 </html>
