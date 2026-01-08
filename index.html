@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sys-Ualas PDV v4.1.6</title>
+    <title>Sys-Ualas PDV v4.7</title>
     
     <meta name="theme-color" content="#1e3a8a">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -87,13 +88,21 @@
 <body>
 
     <div id="screen-login">
-        <div class="login-box">
-            <h1 style="color:#1e3a8a; margin:0;">SYS-UALAS</h1>
-            <p style="color:#64748b; margin-bottom:25px;">PDV v4.1.6</p>
-            <input type="text" id="loginUser" class="input-control" placeholder="USUÁRIO" autocomplete="off">
-            <input type="password" id="loginPass" class="input-control" placeholder="SENHA" onkeyup="if(event.key==='Enter') fazerLogin()">
-            <button class="nav-btn active" onclick="fazerLogin()" style="width:100%; justify-content:center; margin-top:20px; height:55px;">ACESSAR</button>
-        </div>
+      <div class="login-box">
+    <h1 style="color:#1e3a8a; margin:0;">SYS-UALAS</h1>
+    <p style="color:#64748b; margin-bottom:25px;">PDV v4.1.6</p>
+    
+    <input type="text" id="loginUser" class="input-control" placeholder="USUÁRIO" autocomplete="off">
+    <input type="password" id="loginPass" class="input-control" placeholder="SENHA" onkeyup="if(event.key==='Enter') fazerLogin()">
+    
+    <div style="text-align: left; margin-top: 10px; margin-bottom: 10px;">
+        <label style="color:#64748b; font-size: 0.9rem; display:flex; align-items:center; gap:5px; cursor:pointer;">
+            <input type="checkbox" id="chkSalvar" style="width:18px; height:18px;"> Lembrar senha neste computador
+        </label>
+    </div>
+
+    <button class="nav-btn active" onclick="fazerLogin()" style="width:100%; justify-content:center; margin-top:10px; height:55px;">ACESSAR</button>
+</div>
     </div>
 
     <nav class="navbar no-print">
@@ -111,7 +120,7 @@
                 <div class="input-group"><label>Vendedor(a)</label><input type="text" id="inputVendedora" class="input-control" readonly></div>
                 <div class="input-group"><label>Loja</label>
                     <select id="selLoja" class="input-control">
-                        <option>LOJA 01</option><option>LOJA 02</option>
+                        <option>KIDS CENTRO</option><option>KIDS OLIVIA</option><option>BLESS CENTRO</option><option>BLESS OLIVIA</option>
                     </select>
                 </div>
             </div>
@@ -224,22 +233,73 @@
         let cart = [], globalSubtotal = 0, globalTotalFinal = 0;
 
         async function init() {
-            await db.open();
-            if(await db.usuarios.count() === 0) await db.usuarios.add({ login: 'UALAS', senha: '123', perfil: 'admin' });
+		await db.open();
+
+            // Lógica para criar/garantir os usuários de teste
+            const usersDefault = [
+                { login: 'UALAS', senha: '123', perfil: 'admin' },
+                { login: 'KIDSCENTRO', senha: '1793', perfil: 'vendedor' },
+                { login: 'KIDSOLIVIA', senha: '9920', perfil: 'vendedor' },
+                { login: 'BLESSCENTRO', senha: '8848', perfil: 'vendedor' },
+                { login: 'BLESSOLIVIA', senha: '9667', perfil: 'vendedor' }
+            ];
+
+            for (const u of usersDefault) {
+                // Verifica se o usuário já existe para não duplicar
+                const exists = await db.usuarios.where('login').equals(u.login).count();
+                if (exists === 0) {
+                    await db.usuarios.add(u);
+                }
+            }
+
+            // Lógica do "Lembrar Senha"
+            const salvoUser = localStorage.getItem('sys_user');
+            const salvoPass = localStorage.getItem('sys_pass');
+            if(salvoUser && salvoPass) {
+                document.getElementById('loginUser').value = salvoUser;
+                document.getElementById('loginPass').value = salvoPass;
+                document.getElementById('chkSalvar').checked = true;
+            }
+
             atualizarStatusProd();
             renderUsers();
-        }
+	}
         init();
 
         async function fazerLogin() {
-            const u = document.getElementById('loginUser').value.toUpperCase();
+		const u = document.getElementById('loginUser').value.toUpperCase().trim();
             const s = document.getElementById('loginPass').value;
+            const chk = document.getElementById('chkSalvar').checked;
+
             const user = await db.usuarios.where('login').equals(u).first();
+            
             if(user && user.senha === s) {
+                // Salvar ou Limpar credenciais
+                if(chk) {
+                    localStorage.setItem('sys_user', u);
+                    localStorage.setItem('sys_pass', s);
+                } else {
+                    localStorage.removeItem('sys_user');
+                    localStorage.removeItem('sys_pass');
+                }
+
                 document.getElementById('screen-login').classList.add('hidden');
                 document.getElementById('inputVendedora').value = user.login;
                 showScreen('pdv');
-            } else { alert("Usuário ou senha incorretos."); }
+                
+                // Pré-selecionar a loja baseada no nome do usuário (Opcional, mas útil)
+                const selLoja = document.getElementById('selLoja');
+                // Tenta achar uma opção que contenha o nome do usuário (ex: KIDSCENTRO seleciona KIDS CENTRO)
+                for(let i=0; i < selLoja.options.length; i++) {
+                    if(selLoja.options[i].text.replace(/\s/g, '') === u) {
+                        selLoja.selectedIndex = i;
+                        break;
+                    }
+                }
+
+            } else { 
+                alert("Usuário ou senha incorretos."); 
+            }
         }
 
         function showScreen(name) {
